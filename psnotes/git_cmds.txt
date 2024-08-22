@@ -1,0 +1,41 @@
+git init
+git add .
+git commit -a -m "msg"
+git push -u origin <branch>
+git restore <filename>
+
+git log
+git log -p
+gitk -p
+git diff
+
+git cat-file -t <8digits>
+git cat-file commit <8digits>
+git ls-tree <8digits>
+
+git status
+git diff --cached
+git diff HEAD
+git ls-files --stage
+
+git switch <branch> 
+git checkout <branch>
+git show HEAD
+git show HEAD^
+git show <8digits>
+git show <branch>
+
+git branch <new_branch>
+git branch -M <change_new_branch_name>
+git branch -d <branch_name>
+git tag <set_ver or u want> <8digits>
+git branch <set_name> <tag_name>
+
+git merge <branch>
+git rebase <branch>
+git reset --hard HEAD^
+git fetch <url>
+git pull <url>
+git clone <url>
+
+

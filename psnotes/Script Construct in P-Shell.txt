@@ -1,0 +1,94 @@
+Script Construct in P-Shell
+---------------------------
+
+-ch2 ForEach-Object  cmdlet
+ForEach ($user in $users) {
+     Set-ADUser $user -Department "Marketing"
+}
+
+-- Parallel Performance
+$users | ForEach-Object -Parallel { Set-ADUser $user -Department "Marketing" }
+
+
+-ch3 IF construct
+
+If ($freeSpace -le 5GB) {
+   Write-Host "Free disk space is less than 5 GB"
+} ElseIf ($freeSpace -le 10GB) {
+   Write-Host "Free disk space is less than 10 GB"
+} Else {
+   Write-Host "Free disk space is more than 10 GB"
+}
+
+-ch4 Switch construct
+
+Switch ($choice) {
+   1 { Write-Host "You selected menu item 1" }
+   2 { Write-Host "You selected menu item 2" }
+   3 { Write-Host "You selected menu item 3" }
+   Default { Write-Host "You did not select a valid option" }
+}
+
+-- Using Wildcard parameter
+
+Switch -WildCard ($ip) {
+   "10.*" { Write-Host "This computer is on the internal network" }
+   "10.1.*" { Write-Host "This computer is in London" }
+   "10.2.*" { Write-Host "This computer is in Vancouver" }
+   Default { Write-Host "This computer is not on the internal network" }
+ }
+
+-ch5 For construct
+For($i=1; $i -le 10; $i++) {
+   Write-Host "Creating User $i"
+}
+
+-ch6 Do..While construct
+Do {
+   Write-Host "Script block to process"
+} While ($answer -eq "go")
+
+-- Do..Until
+Do {
+   Write-Host "Script block to process"
+} Until ($answer -eq "stop")
+
+-- While
+While ($answer -eq "go") {
+   Write-Host "Script block to process"
+}
+
+-ch7 Break & Continue
+-- Continue
+ForEach ($user in $users) {
+   If ($user.Name -eq "Administrator") {Continue}
+   Write-Host "Modify user object"
+}
+
+-- Break
+ForEach ($user in $users) {
+   $number++
+   Write-Host "Modify User object $number"
+   If ($number -ge $max) {Break}
+}
+
+
+Summary
+Completed
+100 XP
+3 minutes
+In this module, you learned to use scripting constructs such as the ForEach construct to process all of the objects in an array and the If..Else and Switch constructs to make decisions in your scripts. The following are the key takeaways:
+
+Use the ForEach-Object cmdlet to process the data in the pipeline. When you store data in an array, the ForEach construct allows you to process each item in the array.
+
+In PowerShell 7, the -Parallel parameter was added to the ForEach-Object cmdlet. This allows the pipeline to process multiple objects simultaneously.
+
+Use the If construct in Windows PowerShell to make decisions.
+
+The Switch construct is similar to an If construct that has multiple ElseIf sections.
+
+The For construct performs a series of loops similar to a ForEach construct. However, when using the For construct, you must define how many loops occur, which is useful when you want an action to be performed a specific number of times.
+
+There are other less common looping constructs that you can use. These are Do..While, Do..Until, and While.
+
+Break and Continue are two commands that you can use to modify the default behavior of a loop. Continue ends the processing for the current iteration of the loop. Break completely stops the loop processing.

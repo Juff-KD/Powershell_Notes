@@ -1,0 +1,50 @@
+# Var / Arr / hash tables in P-shell
+
+-ch2
+
+$computers = "LON-DC1","LON-SRV1","LON-SRV2"
+$numbers = 228,43,102
+
+$users = Get-ADUser -Filter *
+$files = Get-ChildItem C: 
+
+$newUsers = @()  # Creating empty arr
+
+[array]$computers="LON-DC1"  # 	Arr with single val
+
+
+
+-ch3
+
+$users[0]
+
+$users = $users + $user1
+=
+$users += $user1
+
+$files | Get-Member
+
+Get-Member -InputObject $files
+
+-Working with array lists
+
+[System.Collections.ArrayList]$computers = "LON-DC1","LON-SVR1","LON-CL1"
+
+$computers=New-Object System.Collections.ArrayList 	#empty arr list
+$computers.Add("LON-SRV2")
+$computers.Remove("LON-CL1")
+
+$computers.RemoveAt(1)
+
+-ch5 <Wroking with hash table>
+
+$servers = @{"LON-DC1" = "172.16.0.10"; "LON-SRV1" = "172.16.0.11"}
+
+$servers.Add("LON-SRV2","172.16.0.12")
+$servers.Remove("LON-DC1")
+
+$servers."LON-SRV2"="172.16.0.100" 	-Modifying val 
+$servers | Get-Member
+
+
+ 

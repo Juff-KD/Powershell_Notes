@@ -1,0 +1,15 @@
+Manage Network P-shell
+-ch2
+New-NetIPAddress -IPAddress 192.168.1.10 -InterfaceAlias "Ethernet" -PrefixLength 24 -DefaultGateway 192.168.1.1
+
+-ch3
+New-NetRoute -DestinationPrefix 0.0.0.0/24 -InterfaceAlias "Ethernet" -DefaultGateway 192.168.1.1
+
+-ch4
+Set-DnsClient -InterfaceAlias Ethernet -ConnectionSpecificSuffix "adatum.com"
+
+-ch5
+Enable-NetFirewallRule -DisplayGroup "Remote Access"
+Set-NetFirewallRule -DisplayGroup "Remote Access" -Enabled True
+
+

@@ -1,0 +1,36 @@
+# Permissions P-Shell
+
+- Get-command -module Microsoft.PowerShell.Security
+
+-Retrieving access permissions
+
+Get-Acl -Path C:\Folder1|Format-List
+
+(Get-Acl -Path C:\Folder1).Access
+
+(Get-Acl -Path C:\Folder1).Access|Format-Table IdentityReference, FileSystemRights, AccessControlType, IsInherited
+
+
+-----------
+Updating file and folder access permissions
+The Set-Acl cmdlet is used to apply changes to the ACL on a specific object. The process for modifying file or folder permissions consists of the following steps:
+
+Use Get-Acl to retrieve the existing ACL rules for the object.
+Create a new FileSystemAccessRule to be applied to the object.
+Add the new rule to the existing ACL permission set.
+Use Set-Acl to apply the new ACL to the existing file or folder.
+-----------
+
+# Example
+
+-$ACL = Get-Acl -Path C:\Folder1
+
+-$AccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("User1","Modify","Allow")
+
+-$ACL.SetAccessRule($AccessRule)
+
+-$ACL | Set-Acl -Path C:\Folder1
+
+--Copying a security descriptor to a new object
+
+Get-Acl -Path C:\Folder1|Set-ACL -Path C:\Folder2

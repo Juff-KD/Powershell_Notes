@@ -99,10 +99,376 @@ It's handled by a `catch` in a calling function or exits the script with a messa
   You can access the exception information in the `catch` block using the `$_` variable.
 
 ## Try/Finally
+>   Sometimes you don't need to handle an error but still need some code to execute
+    if an exception happens or not. A finally script does exactly that.
+```ps1
+    $command = [System.Data.SqlClient.SqlCommand]::New(queryString, connection)
+    $command.Connection.Open()
+    $command.ExecuteNonQuery()
+    $command.Connection.Close()
+```
+>   Anytime you open or connect to a resource, you should close it.
+    If the `ExecuteNonQuery()` throws an exception, the connection isn't closed.
+    Here is the same code inside a `try/finally` block.
+```ps1
+    $command = [System.Data.SqlClient.SqlCommand]::New(queryString, connection)
+    try
+    {
+        $command.Connection.Open()
+        $command.ExecuteNonQuery()
+    }
+    finally
+    {
+        $command.Connection.Close()
+    }
+```
+>   _In this example, the connection is closed if there's an error.
+    It also is closed if there's no error. The `finally` script runs every time.
+    Because you're not catching the exception, it still gets propagated up the call stack._
 
+## Try/Catch/Finally
+>   It's perfectly valid to use `catch` and `finally` together.
+    Most of the time you'll use one or the other, but you may find scenarios where you use both.
 
+## $PSItem
+- Inside the catch block, there's an automatic variable ($PSItem or $_) of type ErrorRecord that contains the details about the exception
+- For these examples, I used an invalid path in ReadAllText to generate this exception.
+```
+    [System.IO.File]::ReadAllText( '\\test\no\filefound.log')
+```
 
+## PSItem.ToString()
+>   This gives you the cleanest message to use in logging and general output.
+    `ToString()` is automatically called if `$PSItem` is placed inside a string.
+```ps1
+    catch
+    {
+        Write-Output "Ran into an issue: $($PSItem.ToString())"
+    }
 
+    catch
+    {
+        Write-Output "Ran into an issue: $PSItem"
+    }
+```
 
+## $PSItem.InvocationInfo
+>   This property contains additional information collected by PowerShell about the function or script where the exception was thrown.
+    Here is the InvocationInfo from the sample exception that I created.
+```ps1
+    PS> $PSItem.InvocationInfo | Format-List *
+
+    MyCommand             : Get-Resource
+    BoundParameters       : {}
+    UnboundArguments      : {}
+    ScriptLineNumber      : 5
+    OffsetInLine          : 5
+    ScriptName            : C:\blog\throwerror.ps1
+    Line                  :     Get-Resource
+    PositionMessage       : At C:\blog\throwerror.ps1:5 char:5
+                            +     Get-Resource
+                            +     ~~~~~~~~~~~~
+    PSScriptRoot          : C:\blog
+    PSCommandPath         : C:\blog\throwerror.ps1
+    InvocationName        : Get-Resource
+```
+- *The important details here show the `ScriptName`, the Line of code and the `ScriptLineNumber` where the invocation started.
+
+## $PSItem.ScriptStackTrace
+>    This property shows the order of function calls that got you to the code where the exception was generated.
+```ps1
+    PS> $PSItem.ScriptStackTrace
+    at Get-Resource, C:\blog\throwerror.ps1: line 13
+    at Start-Something, C:\blog\throwerror.ps1: line 5
+    at <ScriptBlock>, C:\blog\throwerror.ps1: line 18
+```
+
+# $PSItem.Exception
+_This is the actual exception that was thrown._
+
+## $PSItem.Exception.Message
+- Most exceptions have a default message but can also be set to something custom when the exception is thrown.
+```ps1
+    PS> $PSItem.Exception.Message
+
+Exception calling "ReadAllText" with "1" argument(s): "The network path was not found."
+```
+_This is also the message returned when calling `$PSItem`.`ToString()` if there was not one set on the ErrorRecord._
+
+## $PSItem.Exception.InnerException
+>    Exceptions can contain inner exceptions.
+    This is often the case when the code you're calling catches an exception and
+    throws a different exception. The original exception is placed inside the new exception.
+```ps1
+    PS> $PSItem.Exception.InnerExceptionMessage
+    The network path was not found.
+```
+
+## $PSItem.Exception.StackTrace
+- I showed a ScriptStackTrace above, but this one is for the calls to managed code.
+- You only get this stack trace when the event is thrown from managed code.
+- Generally when you're looking at a stack trace, you're looking for where your code stops and the system calls begin.
+
+## Working with exceptions
+## Catching typed exceptions
+- You can be selective with the exceptions that you catch. Exceptions have a type and you can specify the type of exception you want to catch.
+```ps1
+    try
+    {
+        Start-Something -Path $path
+    }
+    catch [System.IO.FileNotFoundException]
+    {
+        Write-Output "Could not find $path"
+    }
+    catch [System.IO.IOException]
+    {
+            Write-Output "IO error with the file: $path"
+    }
+```
+>   The exception type is checked for each catch block until one is found that matches your exception.
+    It's important to realize that exceptions can inherit from other exceptions. In the example above,
+    `FileNotFoundException` inherits from `IOException`. So if the `IOException` was first, then it would get called instead.
+    Only one catch block is invoked even if there are multiple matches.
+
+>   ...
+    If we had a `System.IO.PathTooLongException`, the `IOException` would match but if we had an `InsufficientMemoryException`
+    then nothing would catch it and it would propagate up the stack.
+
+## Catch multiple types at once
+- It's possible to catch multiple exception types with the same catch statement.
+```ps1
+        try
+    {
+        Start-Something -Path $path -ErrorAction Stop
+    }
+    catch [System.IO.DirectoryNotFoundException],[System.IO.FileNotFoundException]
+    {
+        Write-Output "The path or file was not found: [$path]"
+    }
+    catch [System.IO.IOException]
+    {
+        Write-Output "IO error with the file: [$path]"
+    }
+```
+
+## Throwing typed exceptions
+- You can throw typed exceptions in PowerShell. Instead of calling throw with a string:
+```ps1
+    throw "Could not find: $path"
+```
+**:Use an exception accelerator like this:**
+```ps1
+    throw [System.IO.FileNotFoundException] "Could not find: $path"
+```
+***But you have to specify a message when you do it that way.**
+
+_**You can also create a new instance of an exception to be thrown.
+The message is optional when you do this because the system has default messages for all built-in exceptions.**_
+```ps1
+    throw [System.IO.FileNotFoundException]::new()
+    throw [System.IO.FileNotFoundException]::new("Could not find path: $path")
+```
+_***If you're not using PowerShell 5.0 or higher, you must use the older `New-Object` approach.**_
+```ps1
+    throw (New-Object -TypeName System.IO.FileNotFoundException )
+    throw (New-Object -TypeName System.IO.FileNotFoundException -ArgumentList "Could not find path: $path")
+```
+_By using a typed exception, you (or others) can catch the exception by the type as mentioned in the previous section._
+
+## Write-Error -Exception
+- We can add these typed exceptions to `Write-Error` and we can still catch the errors by exception type.
+- Use `Write-Error` like in these examples:
+```ps1
+    # with normal message
+    Write-Error -Message "Could not find path: $path" -Exception ([System.IO.FileNotFoundException]::new()) -ErrorAction Stop
+
+    # With message inside new exception
+    Write-Error -Exception ([System.IO.FileNotFoundException]::new("Could not find path: $path")) -ErrorAction Stop
+
+    # Pre PS 5.0
+    Write-Error -Exception ([System.IO.FileNotFoundException]"Could not find path: $path") -ErrorAction Stop
+
+    Write-Error -Message "Could not find path: $path" -Exception (New-Object -TypeName System.IO.FileNotFoundException) -ErrorAction Stop
+```
+- Then we can catch it like this:
+```ps1
+    catch [System.IO.FileNotFoundException]
+    {
+        Write-Log $PSItem.ToString()
+    }
+```
+## Exceptions are objects
+>   If you start using a lot of typed exceptions, remember that they are objects.
+    Different exceptions have different constructors and properties.
+    If we look at the `FileNotFoundException` documentation for `System.IO.FileNotFoundException`,
+    we see that we can pass in a message and a file path.
+```ps1
+    [System.IO.FileNotFoundException]::new("Could not find file", $path)
+```
+- And it has a FileName property that exposes that file path.
+```ps1
+    catch [System.IO.FileNotFoundException]
+    {
+        Write-Output $PSItem.Exception.FileName
+    }
+```
+
+## Re-throwing an exception
+- If all you're going to do in your catch block is throw the same exception, then don't catch it.
+  You should only catch an exception that you plan to handle or perform some action when it happens.
+- There are times where you want to perform an action on an exception but
+  `re-throw` the exception so something downstream can deal with it.
+```ps1
+    catch
+    {
+        Write-Log $PSItem.ToString()
+        throw $PSItem
+    }
+```
+- Interestingly enough, we can call throw from within the catch and it `re-throws` the current exception.
+```ps1
+    catch
+    {
+        Write-Log $PSItem.ToString()
+        throw
+    } 
+```
+>   _We want to `re-throw` the exception to preserve the original execution information like source script and line number.
+    If we throw a new exception at this point, it hides where the exception started._
+
+## Re-throwing a new exception
+>   If you catch an exception but you want to throw a different one, then you should nest the original exception inside the new one.
+    This allows someone down the stack to access it as the `$PSItem.Exception.InnerException`.
+```ps1
+    catch
+    {
+        throw [System.MissingFieldException]::new('Could not access field',$PSItem.Exception)
+    }
+```
+
+## $PSCmdlet.ThrowTerminatingError()
+>   The one thing that I don't like about using throw for raw exceptions is that the error message points at the throw statement
+    and indicates that line is where the problem is.
+```ps1
+    Unable to find the specified file.
+    At line:31 char:9
+    +         throw [System.IO.FileNotFoundException]::new()
+    +         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        + CategoryInfo          : OperationStopped: (:) [], FileNotFoundException
+        + FullyQualifiedErrorId : Unable to find the specified file.
+```
+_I called throw on line 31 is a bad message for users of your script to see. It doesn't tell them anything useful._
+
+- Dexter Dhami pointed out that I can use `ThrowTerminatingError()` to correct that.
+**:Output**
+```ps1
+    $PSCmdlet.ThrowTerminatingError(
+        [System.Management.Automation.ErrorRecord]::new(
+            ([System.IO.FileNotFoundException]"Could not find $Path"),
+            'My.ID',
+            [System.Management.Automation.ErrorCategory]::OpenError,
+            $MyObject
+        )
+    )
+```
+- If we assume that `ThrowTerminatingError()` was called inside a function called `Get-Resource`,
+  then this is the error that we would see.
+**:Output**
+```ps1
+    Get-Resource : Could not find C:\Program Files (x86)\Reference
+    Assemblies\Microsoft\Framework\.NETPortable\v4.6\System.IO.xml
+    At line:6 char:5
+    +     Get-Resource -Path $Path
+    +     ~~~~~~~~~~~~
+        + CategoryInfo          : OpenError: (:) [Get-Resource], FileNotFoundException
+        + FullyQualifiedErrorId : My.ID,Get-Resource
+```
+>   Do you see how it points to the `Get-Resource` function as the source of the problem?
+    That tells the user something useful.
+
+- Because `$PSItem` is an `ErrorRecord`, we can also use `ThrowTerminatingError` this way to re-throw.
+```ps1
+    catch
+    {
+        $PSCmdlet.ThrowTerminatingError($PSItem)
+    }
+```
+_This changes the source of the error to the `Cmdlet` and hide the internals of your function from the users of your Cmdlet._
+
+## Try can create terminating errors
+>   Kirk Munro points out that some exceptions are only terminating errors when executed inside a `try/catch` block.
+    Here is the example he gave me that generates a divide by zero runtime exception.
+```ps1
+    function Start-Something { 1/(1-1) }
+```
+- Then invoke it like this to see it generate the error and still output the message.
+```ps1
+    &{ Start-Something; Write-Output "We did it. Send Email" }
+```
+- But by placing that same code inside a `try/catch`, we see something else happen.
+```ps1
+    try
+    {
+        &{ Start-Something; Write-Output "We did it. Send Email" }
+    }
+    catch
+    {
+        Write-Output "Notify Admin to fix error and send email"
+    }
+```
+_What I don't like about this one is that you can have this code in a function and it acts differently if someone is using a `try/catch`._
+
+## $PSCmdlet.ThrowTerminatingError() inside try/catch
+- One nuance of `$PSCmdlet.ThrowTerminatingError()` is that it creates a terminating error within your `Cmdlet` but
+  it turns into a non-terminating error after it leaves your Cmdlet.
+- This leaves the burden on the caller of your function to decide how to handle the error.
+  They can turn it back into a terminating error by using `-ErrorAction Stop` or calling it from within a `try{...}catch{...}`.
+
+## Public function templates
+>   One last take a way I had with my conversation with Kirk Munro was that he places a `try{...}catch{...}`
+    around every begin, process and end block in all of his advanced functions. In those generic catch blocks,
+    he has a single line using `$PSCmdlet.ThrowTerminatingError($PSItem)` to deal with all exceptions leaving his functions.
+```ps1
+    function Start-Something
+    {
+        [CmdletBinding()]
+        param()
+
+    process
+        {
+            try
+            {
+                ...
+            }
+            catch
+            {
+                $PSCmdlet.ThrowTerminatingError($PSItem)
+            }
+        }
+    }
+```
+- Because everything is in a try statement within his functions, everything acts consistently.
+  This also gives clean errors to the end user that hides the internal code from the generated error.
+
+## Trap
+- I focused on the `try/catch` aspect of exceptions.
+  But there's one legacy feature I need to mention before we wrap this up.
+
+>   A trap is placed in a script or function to catch all exceptions that happen in that scope.
+    When an exception happens, the code in the trap is executed and then the normal code continues.
+    If multiple exceptions happen, then the trap is called over and over.
+```ps1
+    trap
+    {
+        Write-Log $PSItem.ToString()
+    }
+
+    throw [System.Exception]::new('first')
+    throw [System.Exception]::new('second')
+    throw [System.Exception]::new('third')
+```
+# Closing remarks
+**Adding proper exception handling to your scripts not only make them more stable, but also makes it easier for you to troubleshoot those exceptions.**
 
 

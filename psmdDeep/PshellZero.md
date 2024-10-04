@@ -1,20 +1,20 @@
 # Powershell Arrays
 
 ## Create an Array
-```powershell 
+```ps1
     $data = @()
     $data.count
 ```
 
 ## We can create an array and seed it with values just by placing them in the @() parentheses.
-```
+```ps1
     PS> $data = @('Zero','One','Two','Three')
     PS> $data.count
     4
 ```
 
 ## We can declare an array on multiple lines. The comma is optional in this case and generally left out.
-```
+```ps1
     $data = @(
     'Zero'
     'One'

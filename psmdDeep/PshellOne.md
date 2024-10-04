@@ -1,12 +1,12 @@
 # Arrays of Objects
-```powershell
+```ps1
     $data = @(
     [pscustomobject]@{FirstName='Kevin';LastName='Marquette'}
     [pscustomobject]@{FirstName='John'; LastName='Doe'}
     )
 ```
 ## Accessing properties
-```
+```ps1
     PS> $data[0]
 
         FirstName LastName
